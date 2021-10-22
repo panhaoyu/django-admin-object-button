@@ -1,0 +1,4 @@
+django
+twine
+wheel
+django-guardian

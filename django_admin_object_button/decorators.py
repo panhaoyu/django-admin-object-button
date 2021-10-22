@@ -1,9 +1,24 @@
-from django.contrib import auth
+from typing import TYPE_CHECKING
+
+import django.contrib.auth.decorators
 from django.contrib.admin import ModelAdmin
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model
 from django.http import HttpRequest
 from django.urls import reverse, path
-from guardian.decorators import permission_required_or_403
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
+
+try:
+    # noinspection PyUnresolvedReferences
+    from guardian.decorators import permission_required_or_403
+
+    _have_guardian = True
+except ImportError:
+    _have_guardian = False
+except ImproperlyConfigured:
+    _have_guardian = True
 
 
 class ObjectButton:
@@ -71,7 +86,10 @@ class ObjectButton:
     def view(self):
         view = self.admin.admin_site.admin_view(self)
         if self.permission_required:
-            view = permission_required_or_403(self.permission_required)(view)
+            if _have_guardian:
+                view = permission_required_or_403(self.permission_required)(view)
+            else:
+                view = django.contrib.auth.decorators.permission_required(self.permission_required)(view)
         view.model_admin = self
         return view
 
@@ -102,7 +120,8 @@ class ObjectButton:
         return self._args[1]
 
     @property
-    def user(self) -> auth.get_user_model():
+    def user(self) -> 'User':
+        # noinspection PyUnresolvedReferences
         return self.request.user
 
     def has_permission(self, obj: Model):
